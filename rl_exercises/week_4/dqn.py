@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import gymnasium as gym
 import hydra
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -122,6 +123,9 @@ class DQNAgent(AbstractAgent):
 
         self.total_steps = 0  # for ε decay and target sync
 
+        # set up matplotlib
+        plt.ion()
+
     def epsilon(self) -> float:
         """
         Compute current ε by exponential decay.
@@ -134,8 +138,11 @@ class DQNAgent(AbstractAgent):
         # TODO: implement exponential‐decayin
         # ε = ε_final + (ε_start - ε_final) * exp(-total_steps / ε_decay)
         # Currently, it is constant and returns the starting value ε
+        epsilon = self.epsilon_final + (
+            self.epsilon_start - self.epsilon_final
+        ) * np.exp(-self.total_steps / self.epsilon_decay)
 
-        return self.epsilon_start
+        return epsilon
 
     def predict_action(
         self, state: np.ndarray, evaluate: bool = False
@@ -161,17 +168,22 @@ class DQNAgent(AbstractAgent):
         if evaluate:
             # TODO: select purely greedy action from Q(s)
             with torch.no_grad():
-                qvals = ...  # noqa: F841
+                qvals = self.q(torch.tensor(state, dtype=torch.float32))  # noqa: F841    # ist ein tensor mit action_n einträgen
 
-            action = None
+            action = torch.argmax(
+                qvals
+            ).item()  # returned den index des höchsten q values aus dem tensor
         else:
             if np.random.rand() < self.epsilon():
                 # TODO: sample random action
-                action = None
+                action = np.random.choice(self.env.action_space.n)
             else:
                 # TODO: select purely greedy action from Q(s)
-                action = None
-
+                with torch.no_grad():
+                    qvals = self.q(torch.tensor(state, dtype=torch.float32))  # noqa: F841    # ist ein tensor mit action_n einträgen
+                action = torch.argmax(
+                    qvals
+                ).item()  # returned den index des höchsten q values aus dem tensor
         return action
 
     def save(self, path: str) -> None:
@@ -229,11 +241,11 @@ class DQNAgent(AbstractAgent):
         mask = torch.tensor(np.array(dones), dtype=torch.float32)  # noqa: F841
 
         # # TODO: pass batched states through self.q and gather Q(s,a)
-        pred = ...
-
+        pred = self.q(s).gather(1, a)
         # TODO: compute TD target with frozen network
         with torch.no_grad():
-            target = ...
+            max_q_next = self.target_q(s_next).max(dim=1, keepdim=True)[0]
+            target = r.unsqueeze(1) + self.gamma * (1 - mask.unsqueeze(1)) * max_q_next
 
         loss = nn.MSELoss()(pred, target)
 
@@ -263,7 +275,7 @@ class DQNAgent(AbstractAgent):
         state, _ = self.env.reset()
         ep_reward = 0.0
         recent_rewards: List[float] = []
-
+        total_avg = []
         for frame in range(1, num_frames + 1):
             action = self.predict_action(state)
             next_state, reward, done, truncated, _ = self.env.step(action)
@@ -276,7 +288,7 @@ class DQNAgent(AbstractAgent):
             # update if ready
             if len(self.buffer) >= self.batch_size:
                 # TODO: sample a batch from replay buffer
-                batch = ...
+                batch = self.buffer.sample(self.batch_size)
                 _ = self.update_agent(batch)
 
             if done or truncated:
@@ -286,7 +298,10 @@ class DQNAgent(AbstractAgent):
                 # logging
                 if len(recent_rewards) % 10 == 0:
                     # TODO: compute avg over last eval_interval episodes and print
-                    avg = ...
+                    avg = np.mean(
+                        recent_rewards[-10:]
+                    )  # ANMERKUNG hier glaube ich eval_interval statt 10 oder?
+                    total_avg.append(avg)
                     print(
                         f"Frame {frame}, AvgReward(10): {avg:.2f}, ε={self.epsilon():.3f}"
                     )
@@ -301,8 +316,19 @@ def main(cfg: DictConfig):
     set_seed(env, cfg.seed)
 
     # 3) TODO: instantiate & train the agent
-    agent = ...
-    agent.train(...)
+
+    agent = DQNAgent(
+        env=env,
+        lr=cfg.agent.learning_rate,
+        gamma=cfg.agent.gamma,
+        epsilon_start=cfg.agent.epsilon_start,
+        epsilon_final=cfg.agent.epsilon_final,
+        epsilon_decay=cfg.agent.epsilon_decay,
+        target_update_freq=cfg.agent.target_update_freq,
+        buffer_capacity=cfg.agent.buffer_capacity,
+        batch_size=cfg.agent.batch_size,
+    )
+    agent.train(num_frames=cfg.train.num_frames, eval_interval=cfg.train.eval_interval)
 
 
 if __name__ == "__main__":
