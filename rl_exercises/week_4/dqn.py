@@ -4,6 +4,9 @@ Deep Q-Learning implementation.
 
 from typing import Any, Dict, List, Tuple
 
+import os
+import os.path
+
 import gymnasium as gym
 import hydra
 import matplotlib.pyplot as plt
@@ -275,7 +278,8 @@ class DQNAgent(AbstractAgent):
         state, _ = self.env.reset()
         ep_reward = 0.0
         recent_rewards: List[float] = []
-        total_avg = []
+        xdata: List[int] = []
+        ydata: List[float] = []
         for frame in range(1, num_frames + 1):
             action = self.predict_action(state)
             next_state, reward, done, truncated, _ = self.env.step(action)
@@ -301,10 +305,19 @@ class DQNAgent(AbstractAgent):
                     avg = np.mean(
                         recent_rewards[-10:]
                     )  # ANMERKUNG hier glaube ich eval_interval statt 10 oder?
-                    total_avg.append(avg)
                     print(
                         f"Frame {frame}, AvgReward(10): {avg:.2f}, ε={self.epsilon():.3f}"
                     )
+                xdata.append(frame)
+                ydata.append(np.mean(recent_rewards))
+        # Create a new plot
+        plot_dir = "/home/pudlowski/rl-week-4-rl_lp/rl_exercises/week_4/plots/"
+        filename = (
+            str(len([name for name in os.listdir(plot_dir) if os.path.isfile(name)]))
+            + "_plot.jpg"
+        )
+        plt.plot(xdata, ydata)
+        plt.savefig(plot_dir + filename)
 
         print("Training complete.")
 
