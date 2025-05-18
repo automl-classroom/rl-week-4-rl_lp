@@ -103,7 +103,7 @@ class DQNAgent(AbstractAgent):
         )
         self.env = env
         set_seed(env, seed)
-        self.hidden_dim = 1
+        self.hidden_dim = hidden_dim
         obs_dim = env.observation_space.shape[0]
         n_actions = env.action_space.n
 
@@ -313,7 +313,7 @@ class DQNAgent(AbstractAgent):
         size_replay_buffer = str(self.buffer.capacity)
         batch_size = str(self.batch_size)
 
-        filename = architecture + "-" + size_replay_buffer + "-" + batch_size + ".jpg"
+        filename = "fc4-" + architecture + "-" + size_replay_buffer + "-" + batch_size + ".jpg"
         plt.plot(xdata, ydata)
         plt.savefig(plot_dir + filename)
         plt.clf()
@@ -331,7 +331,7 @@ def main(cfg: DictConfig):
     CREATE_PLOTS = True
     if CREATE_PLOTS:
         # values for which plots are created
-        hidden_dims = [1, 64]
+        hidden_dims = [64]
         buffer_capacitys = [10, 100, 1000, 5000, 10000]
         batch_sizes = [10, 20, 32, 40, 50]
 
