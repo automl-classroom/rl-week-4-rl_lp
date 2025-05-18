@@ -60,6 +60,7 @@ class DQNAgent(AbstractAgent):
         epsilon_decay: int = 500,
         target_update_freq: int = 1000,
         seed: int = 0,
+        hidden_dim: int = 64,
     ) -> None:
         """
         Initialize replay buffer, Q-networks, optimizer, and hyperparameters.
@@ -98,16 +99,17 @@ class DQNAgent(AbstractAgent):
             epsilon_decay,
             target_update_freq,
             seed,
+            hidden_dim,
         )
         self.env = env
         set_seed(env, seed)
-
+        self.hidden_dim = 1
         obs_dim = env.observation_space.shape[0]
         n_actions = env.action_space.n
 
         # main Q-network and frozen target
-        self.q = QNetwork(obs_dim, n_actions)
-        self.target_q = QNetwork(obs_dim, n_actions)
+        self.q = QNetwork(obs_dim, n_actions, self.hidden_dim)
+        self.target_q = QNetwork(obs_dim, n_actions, self.hidden_dim)
         self.target_q.load_state_dict(self.q.state_dict())
 
         self.optimizer = optim.Adam(self.q.parameters(), lr=lr)
@@ -307,13 +309,7 @@ class DQNAgent(AbstractAgent):
         # Create a new plot
 
         plot_dir = "../../../rl_exercises/week_4/plots/"  # "/home/pudlowski/rl-week-4-rl_lp/rl_exercises/week_4/plots/"
-        architecture = (
-            "("
-            + str(self.env.observation_space.shape[0])
-            + ","
-            + str(self.env.action_space.n)
-            + ")"
-        )
+        architecture = "(" + str(self.hidden_dim) + "," + str(self.hidden_dim) + ")"
         size_replay_buffer = str(self.buffer.capacity)
         batch_size = str(self.batch_size)
 
@@ -332,30 +328,34 @@ def main(cfg: DictConfig):
     set_seed(env, cfg.seed)
 
     # Just a part to create plots without using hydra (cause it wont work on my system)
-    CREATE_PLOTS = False
+    CREATE_PLOTS = True
     if CREATE_PLOTS:
         # values for which plots are created
+        hidden_dims = [1, 64]
         buffer_capacitys = [10, 100, 1000, 5000, 10000]
         batch_sizes = [10, 20, 32, 40, 50]
 
         # create plots for each combined value pairs
-        for buffer_capacity in buffer_capacitys:
-            for batch_size in batch_sizes:
-                agent = DQNAgent(
-                    env=env,
-                    lr=cfg.agent.learning_rate,
-                    gamma=cfg.agent.gamma,
-                    epsilon_start=cfg.agent.epsilon_start,
-                    epsilon_final=cfg.agent.epsilon_final,
-                    epsilon_decay=cfg.agent.epsilon_decay,
-                    target_update_freq=cfg.agent.target_update_freq,
-                    buffer_capacity=buffer_capacity,  # cfg.agent.buffer_capacity,
-                    batch_size=batch_size,  # cfg.agent.batch_size,
-                )
-                agent.train(
-                    num_frames=cfg.train.num_frames,
-                    eval_interval=cfg.train.eval_interval,
-                )
+        for hidden_dim in hidden_dims:
+            for buffer_capacity in buffer_capacitys:
+                for batch_size in batch_sizes:
+                    agent = DQNAgent(
+                        env=env,
+                        lr=cfg.agent.learning_rate,
+                        gamma=cfg.agent.gamma,
+                        epsilon_start=cfg.agent.epsilon_start,
+                        epsilon_final=cfg.agent.epsilon_final,
+                        epsilon_decay=cfg.agent.epsilon_decay,
+                        target_update_freq=cfg.agent.target_update_freq,
+                        buffer_capacity=buffer_capacity,  # cfg.agent.buffer_capacity,
+                        batch_size=batch_size,  # cfg.agent.batch_size,
+                        hidden_dim=hidden_dim,
+                    )
+
+                    agent.train(
+                        num_frames=cfg.train.num_frames,
+                        eval_interval=cfg.train.eval_interval,
+                    )
     else:
         # 3) TODO: instantiate & train the agent
         agent = DQNAgent(
