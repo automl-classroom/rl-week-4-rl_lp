@@ -311,7 +311,7 @@ class DQNAgent(AbstractAgent):
                 xdata.append(frame)
                 ydata.append(np.mean(recent_rewards))
         # Create a new plot
-        plot_dir = "/home/pudlowski/rl-week-4-rl_lp/rl_exercises/week_4/plots/"
+        plot_dir = "../../../plots/"
         filename = (
             str(len([name for name in os.listdir(plot_dir) if os.path.isfile(name)]))
             + "_plot.jpg"
