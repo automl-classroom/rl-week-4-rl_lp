@@ -4,9 +4,6 @@ Deep Q-Learning implementation.
 
 from typing import Any, Dict, List, Tuple
 
-import os
-import os.path
-
 import gymnasium as gym
 import hydra
 import matplotlib.pyplot as plt
@@ -125,9 +122,6 @@ class DQNAgent(AbstractAgent):
         self.target_update_freq = target_update_freq
 
         self.total_steps = 0  # for ε decay and target sync
-
-        # set up matplotlib
-        plt.ion()
 
     def epsilon(self) -> float:
         """
@@ -311,13 +305,22 @@ class DQNAgent(AbstractAgent):
                 xdata.append(frame)
                 ydata.append(np.mean(recent_rewards))
         # Create a new plot
-        plot_dir = "../../../plots/"
-        filename = (
-            str(len([name for name in os.listdir(plot_dir) if os.path.isfile(name)]))
-            + "_plot.jpg"
+
+        plot_dir = "../../../rl_exercises/week_4/plots/"  # "/home/pudlowski/rl-week-4-rl_lp/rl_exercises/week_4/plots/"
+        architecture = (
+            "("
+            + str(self.env.observation_space.shape[0])
+            + ","
+            + str(self.env.action_space.n)
+            + ")"
         )
+        size_replay_buffer = str(self.buffer.capacity)
+        batch_size = str(self.batch_size)
+
+        filename = architecture + "-" + size_replay_buffer + "-" + batch_size + ".jpg"
         plt.plot(xdata, ydata)
         plt.savefig(plot_dir + filename)
+        plt.clf()
 
         print("Training complete.")
 
@@ -328,20 +331,47 @@ def main(cfg: DictConfig):
     env = gym.make(cfg.env.name)
     set_seed(env, cfg.seed)
 
-    # 3) TODO: instantiate & train the agent
+    # Just a part to create plots without using hydra (cause it wont work on my system)
+    CREATE_PLOTS = False
+    if CREATE_PLOTS:
+        # values for which plots are created
+        buffer_capacitys = [10, 100, 1000, 5000, 10000]
+        batch_sizes = [10, 20, 32, 40, 50]
 
-    agent = DQNAgent(
-        env=env,
-        lr=cfg.agent.learning_rate,
-        gamma=cfg.agent.gamma,
-        epsilon_start=cfg.agent.epsilon_start,
-        epsilon_final=cfg.agent.epsilon_final,
-        epsilon_decay=cfg.agent.epsilon_decay,
-        target_update_freq=cfg.agent.target_update_freq,
-        buffer_capacity=cfg.agent.buffer_capacity,
-        batch_size=cfg.agent.batch_size,
-    )
-    agent.train(num_frames=cfg.train.num_frames, eval_interval=cfg.train.eval_interval)
+        # create plots for each combined value pairs
+        for buffer_capacity in buffer_capacitys:
+            for batch_size in batch_sizes:
+                agent = DQNAgent(
+                    env=env,
+                    lr=cfg.agent.learning_rate,
+                    gamma=cfg.agent.gamma,
+                    epsilon_start=cfg.agent.epsilon_start,
+                    epsilon_final=cfg.agent.epsilon_final,
+                    epsilon_decay=cfg.agent.epsilon_decay,
+                    target_update_freq=cfg.agent.target_update_freq,
+                    buffer_capacity=buffer_capacity,  # cfg.agent.buffer_capacity,
+                    batch_size=batch_size,  # cfg.agent.batch_size,
+                )
+                agent.train(
+                    num_frames=cfg.train.num_frames,
+                    eval_interval=cfg.train.eval_interval,
+                )
+    else:
+        # 3) TODO: instantiate & train the agent
+        agent = DQNAgent(
+            env=env,
+            lr=cfg.agent.learning_rate,
+            gamma=cfg.agent.gamma,
+            epsilon_start=cfg.agent.epsilon_start,
+            epsilon_final=cfg.agent.epsilon_final,
+            epsilon_decay=cfg.agent.epsilon_decay,
+            target_update_freq=cfg.agent.target_update_freq,
+            buffer_capacity=cfg.agent.buffer_capacity,
+            batch_size=cfg.agent.batch_size,
+        )
+        agent.train(
+            num_frames=cfg.train.num_frames, eval_interval=cfg.train.eval_interval
+        )
 
 
 if __name__ == "__main__":
